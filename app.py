@@ -3,53 +3,37 @@ import pickle
 import pandas as pd
 import requests
 
-def fetch_poster(movie_id):
-    response=requests.get('https://api.themoviedb.org/3/movie/{}?api_key=cec3af2421f339084ce799a874e96cb8&language=en-US'.format(movie_id))
-    data=response.json()
-    return "https://image.tmdb.org/t/p/w500/" + data['poster_path']
+# --- UTIL FUNCTION ---
+def fetch_file_from_gdrive(gdrive_url, filename):
+    import gdown
+    file_id = gdrive_url.split("/d/")[1].split("/")[0]
+    gdown.download(f"https://drive.google.com/uc?id={file_id}", filename, quiet=False)
 
+# --- DOWNLOAD FILES IF NOT PRESENT ---
+if not os.path.exists("similarity.pkl"):
+    fetch_file_from_gdrive("https://drive.google.com/file/d/1zKUw0M_wxrx9ohSHnbE2CohI6hHWGuad/view?usp=sharing", "similarity.pkl")
+
+if not os.path.exists("movies_dict.pkl"):
+    fetch_file_from_gdrive("https://drive.google.com/file/d/1iMr7oPInLqoIZEBlLw--mIfLqKmZNti-/view?usp=sharing", "movies_dict.pkl")
+
+# --- LOAD FILES ---
+movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
+similarity = pickle.load(open('similarity.pkl', 'rb'))
+movies = pd.DataFrame(movies_dict)
+
+# --- RECOMMENDER FUNCTION ---
 def recommend(movie):
-    movie_index=movies[movies['title']==movie].index[0]
-    distances=similarity[movie_index]
-    movies_list=sorted(list(enumerate(distances)),reverse=True,key=lambda x:x[1])[1:6]
+    index = movies[movies['title'] == movie].index[0]
+    distances = sorted(list(enumerate(similarity[index])), reverse=True, key=lambda x: x[1])
+    recommended_movies = [movies.iloc[i[0]].title for i in distances[1:6]]
+    return recommended_movies
 
-    recommended_movies=[]
-    recommended_movies_posters=[]
-    for i in movies_list:
-        movie_id=movies.iloc[i[0]].movie_id
+# --- STREAMLIT UI ---
+st.title("Movie Recommender System")
 
-        recommended_movies.append(movies.iloc[i[0]].title)
-        # fetch poster from API
-        recommended_movies_posters.append(fetch_poster(movie_id))
-    return recommended_movies,recommended_movies_posters
-
-movies_dict=pickle.load(open('movies_dict.pkl', 'rb'))
-movies=pd.DataFrame(movies_dict)
-similarity=pickle.load(open('similarity.pkl', 'rb'))
-
-st.title('Movie Recommender System')
-
-selected_movie_name=st.selectbox(
-    'how would you like to be contacted?',
-    movies['title'].values
-)
+selected_movie = st.selectbox("Type or select a movie from the dropdown", movies['title'].values)
 
 if st.button('Recommend'):
-    names,posters=recommend(selected_movie_name)
-
-    col1,col2,col3,col4,col5=st.columns(5)
-    with col1:
-        st.text(names[0])
-        st.image(posters[0])
-    with col2:
-        st.text(names[1])
-        st.image(posters[1])
-    with col3:
-        st.text(names[2])
-        st.image(posters[2])
-    with col4:
-        st.text(names[3])
-        st.image(posters[3])
-    with col5:
-        st.text(names[4])
-        st.image(posters[4])
+    recommendations = recommend(selected_movie)
+    for i in recommendations:
+        st.write(i)
