@@ -4,8 +4,7 @@ import pickle
 import pandas as pd
 import requests
 
-from dotenv import load_dotenv
-load_dotenv()
+
 
 
 st.markdown("""
@@ -48,11 +47,28 @@ def fetch_file_from_gdrive(gdrive_url, filename):
     gdown.download(f"https://drive.google.com/uc?id={file_id}", filename, quiet=False)
 
 # --- DOWNLOAD FILES IF NOT PRESENT ---
-if not os.path.exists("similarity.pkl"):
-    fetch_file_from_gdrive("https://drive.google.com/file/d/1zKUw0M_wxrx9ohSHnbE2CohI6hHWGuad/view?usp=sharing", "similarity.pkl")
+def load_pickle_file(filename, gdrive_url):
+    try:
+        return pickle.load(open(filename, "rb"))
+    except:
+        if os.path.exists(filename):
+            os.remove(filename)
 
-if not os.path.exists("movies_dict.pkl"):
-    fetch_file_from_gdrive("https://drive.google.com/file/d/1iMr7oPInLqoIZEBlLw--mIfLqKmZNti-/view?usp=sharing", "movies_dict.pkl")
+        fetch_file_from_gdrive(gdrive_url, filename)
+        return pickle.load(open(filename, "rb"))
+
+
+movies_dict = load_pickle_file(
+    "movies_dict.pkl",
+    "https://drive.google.com/file/d/1iMr7oPInLqoIZEBlLw--mIfLqKmZNti-/view?usp=sharing"
+)
+
+similarity = load_pickle_file(
+    "similarity.pkl",
+    "https://drive.google.com/file/d/1zKUw0M_wxrx9ohSHnbE2CohI6hHWGuad/view?usp=sharing"
+)
+
+movies = pd.DataFrame(movies_dict)
 
 # --- LOAD FILES ---
 movies_dict = pickle.load(open('movies_dict.pkl', 'rb'))
